@@ -70,6 +70,16 @@ const socketHandler = (io) => {
             io.emit('updateClientCount', connectedPlayers);
         });
 
+        socket.on('verifyGame', ({ gameId, start, middle, target }) => {
+            const game = games[gameId];
+            if (!game) {
+                socket.emit('gameVerified', { invalid: true, errorMessage: 'Game not found' });
+            } else {
+                const isVerified = game.start === start && game.middle === middle && game.target === target;
+                socket.emit('gameVerified', { invalid: !isVerified, errorMessage: isVerified ? null : 'Invalid game data' });
+            }
+        });
+
         socket.on('rejoinGame', ({ gameId, userId }) => {
             const game = games[gameId];
             if (!game) return;
