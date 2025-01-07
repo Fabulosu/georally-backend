@@ -8,32 +8,37 @@ const socketHandler = (io) => {
     let connectedPlayers = 0;
 
     io.on('connection', (socket) => {
-        console.log(`Player connected: ${socket.id}`);
-
         const userId = uuidv4();
         socket.userId = userId;
         socket.inGame = false;
 
-        socket.on('joinQueue', () => {
+        socket.on('joinQueue', (data) => {
             if (waitingQueue.includes(socket)) return;
 
             const isInGame = Object.values(games).some(game => game.players.includes(socket));
             if (isInGame) return;
 
+            console.log(`Player joined queue: ${socket.id}`);
+
             connectedPlayers++;
             io.emit('updateClientCount', connectedPlayers);
 
+            socket.difficulty = data.difficulty;
             waitingQueue.push(socket);
 
-            if (waitingQueue.length >= 2) {
-                const player1 = waitingQueue.shift();
-                const player2 = waitingQueue.shift();
+            const sameDifficultyPlayers = waitingQueue.filter(player => player.difficulty === data.difficulty);
+
+            if (sameDifficultyPlayers.length >= 2) {
+                const player1 = sameDifficultyPlayers.shift();
+                const player2 = sameDifficultyPlayers.shift();
+
+                waitingQueue = waitingQueue.filter(player => player !== player1 && player !== player2);
 
                 const { gameId, startCountry, middleCountry, targetCountry } = generateGame();
-                console.log(player1.id)
-                console.log(player2.id)
+                console.log(player1.id);
+                console.log(player2.id);
 
-                games[gameId] = { players: [player1, player2], state: 'playing', start: null, middle: null, target: null };
+                games[gameId] = { players: [player1, player2], state: 'playing', start: null, middle: null, target: null, difficulty: data.difficulty };
 
                 const start = startCountry.name;
                 const middle = middleCountry.name;
@@ -50,6 +55,7 @@ const socketHandler = (io) => {
                     start: games[gameId].start,
                     middle: games[gameId].middle,
                     target: games[gameId].target,
+                    difficulty: data.difficulty,
                     userId: player1.userId
                 });
 
@@ -58,15 +64,16 @@ const socketHandler = (io) => {
                     start: games[gameId].start,
                     middle: games[gameId].middle,
                     target: games[gameId].target,
+                    difficulty: data.difficulty,
                     userId: player2.userId
                 });
 
                 setTimeout(() => {
                     connectedPlayers -= 2;
                     io.emit('updateClientCount', connectedPlayers);
-                }, 1000);
+                }, 2000);
 
-                console.log(`Game Room created: ${gameId} with players ${player1.userId}, ${player2.userId}`);
+                console.log(`Game Room created: ${gameId} with players ${player1.userId} (${player1.id}), ${player2.userId} (${player2.id})`);
             }
         });
 
@@ -87,21 +94,21 @@ const socketHandler = (io) => {
                     if (opponentSocket) {
                         opponentSocket.emit('opponentLeft');
                     }
-                    delete games[game];
                     console.log(`Player left game: ${socket.id}`)
                 }
             } else {
+                console.log(`Player disconnected: ${socket.id}`);
                 connectedPlayers--;
                 io.emit('updateClientCount', connectedPlayers);
             }
         });
 
-        socket.on('verifyGame', ({ gameId, start, middle, target }) => {
+        socket.on('verifyGame', ({ gameId, start, middle, target, difficulty }) => {
             const game = games[gameId];
             if (!game) {
                 socket.emit('gameVerified', { invalid: true, errorMessage: 'Game not found' });
             } else {
-                const isVerified = game.start === start && game.middle === middle && game.target === target;
+                const isVerified = game.start === start && game.middle === middle && game.target === target && game.difficulty === difficulty;;
                 socket.emit('gameVerified', { invalid: !isVerified, errorMessage: isVerified ? null : 'Invalid game data' });
             }
         });
@@ -113,6 +120,8 @@ const socketHandler = (io) => {
             socket.userId = userId;
             game.players = game.players.map(player => player.userId === userId ? socket : player);
             socket.inGame = true;
+
+            console.log(`Player with id ${userId} (${socket.id}) joined the game with id: ${gameId}`);
         });
 
         socket.on('submit-neighbour', ({ gameId, country, neighbour }) => {
@@ -132,12 +141,17 @@ const socketHandler = (io) => {
             const game = games[gameId];
             if (!game) return;
 
+            const playerSocket = game.players.find(player => player.userId === userId);
+            if (playerSocket) {
+                playerSocket.emit('gameWon', { opponentMoves: moves });
+            }
+
             const opponentSocket = game.players.find(player => player.userId !== userId);
             if (opponentSocket) {
                 opponentSocket.emit('opponentWon', { opponentMoves: moves });
             }
 
-            delete games[gameId];
+            // delete games[gameId];
         });
     });
 };
