@@ -79,7 +79,7 @@ const socketHandler = (io) => {
             } else if (Object.values(games).some(game => game.players.includes(socket))) {
                 const player = Object.values(games).find(game => game.players.includes(socket)).players.find(player => player === socket);
 
-                if (player.initiated) {
+                if (player.inGame) {
                     const game = Object.values(games).find(game => game.players.includes(socket));
                     const opponentSocket = game.players.find(player => player !== socket);
                     game.players = game.players.filter(player => player !== socket);
