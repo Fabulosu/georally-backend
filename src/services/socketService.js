@@ -12,7 +12,7 @@ const socketHandler = (io) => {
 
         const userId = uuidv4();
         socket.userId = userId;
-
+        socket.inGame = false;
 
         socket.on('joinQueue', () => {
             if (waitingQueue.includes(socket)) return;
@@ -61,13 +61,39 @@ const socketHandler = (io) => {
                     userId: player2.userId
                 });
 
+                setTimeout(() => {
+                    connectedPlayers -= 2;
+                    io.emit('updateClientCount', connectedPlayers);
+                }, 1000);
+
                 console.log(`Game Room created: ${gameId} with players ${player1.userId}, ${player2.userId}`);
             }
         });
 
         socket.on('disconnect', () => {
-            connectedPlayers--;
-            io.emit('updateClientCount', connectedPlayers);
+            if (waitingQueue.includes(socket)) {
+                waitingQueue.splice(waitingQueue.indexOf(socket), 1);
+                console.log(`Player removed from queue: ${socket.id}`);
+                connectedPlayers--;
+                io.emit('updateClientCount', connectedPlayers);
+            } else if (Object.values(games).some(game => game.players.includes(socket))) {
+                const player = Object.values(games).find(game => game.players.includes(socket)).players.find(player => player === socket);
+
+                if (player.initiated) {
+                    const game = Object.values(games).find(game => game.players.includes(socket));
+                    const opponentSocket = game.players.find(player => player !== socket);
+                    game.players = game.players.filter(player => player !== socket);
+
+                    if (opponentSocket) {
+                        opponentSocket.emit('opponentLeft');
+                    }
+                    delete games[game];
+                    console.log(`Player left game: ${socket.id}`)
+                }
+            } else {
+                connectedPlayers--;
+                io.emit('updateClientCount', connectedPlayers);
+            }
         });
 
         socket.on('verifyGame', ({ gameId, start, middle, target }) => {
@@ -86,7 +112,7 @@ const socketHandler = (io) => {
 
             socket.userId = userId;
             game.players = game.players.map(player => player.userId === userId ? socket : player);
-
+            socket.inGame = true;
         });
 
         socket.on('submit-neighbour', ({ gameId, country, neighbour }) => {
