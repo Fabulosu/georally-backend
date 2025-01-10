@@ -108,8 +108,20 @@ const socketHandler = (io) => {
             if (!game) {
                 socket.emit('gameVerified', { invalid: true, errorMessage: 'Game not found' });
             } else {
-                const isVerified = game.start === start && game.middle === middle && game.target === target && game.difficulty === difficulty;;
-                socket.emit('gameVerified', { invalid: !isVerified, errorMessage: isVerified ? null : 'Invalid game data' });
+                const isVerified = game.start === start && game.middle === middle && game.target === target && game.difficulty === difficulty;
+
+                if (isVerified) {
+                    setTimeout(() => {
+                        const gamePlayers = game.players.map(player => player.userId);
+                        if (socket.userId !== gamePlayers[0] && socket.userId !== gamePlayers[1]) {
+                            socket.emit('gameVerified', { invalid: true, errorMessage: 'You are not part of this game' });
+                        } else {
+                            socket.emit('gameVerified', { invalid: false, errorMessage: null });
+                        }
+                    }, 2000);
+                } else {
+                    socket.emit('gameVerified', { invalid: !isVerified, errorMessage: isVerified ? null : 'Invalid game data' });
+                }
             }
         });
 
@@ -151,7 +163,7 @@ const socketHandler = (io) => {
                 opponentSocket.emit('opponentWon', { opponentMoves: moves });
             }
 
-            // delete games[gameId];
+            games[gameId].state = 'ended';
         });
     });
 };
