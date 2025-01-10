@@ -4,19 +4,22 @@ const { v4: uuidv4 } = require('uuid');
 const socketHandler = (io) => {
     let games = {};
     let waitingQueue = [];
+    let reconnectTimers = {};
 
     let connectedPlayers = 0;
 
     io.on('connection', (socket) => {
-        const userId = uuidv4();
-        socket.userId = userId;
-        socket.inGame = false;
-
         socket.on('joinQueue', (data) => {
             if (waitingQueue.includes(socket)) return;
 
             const isInGame = Object.values(games).some(game => game.players.includes(socket));
             if (isInGame) return;
+
+            const userId = uuidv4();
+            socket.userId = userId;
+            socket.inGame = false;
+
+            socket.emit('joinedQueue', { userId });
 
             console.log(`Player joined queue: ${socket.id}`);
 
@@ -89,20 +92,29 @@ const socketHandler = (io) => {
                 if (player.inGame) {
                     const game = Object.values(games).find(game => game.players.includes(socket));
                     const opponentSocket = game.players.find(player => player !== socket);
-                    game.players = game.players.filter(player => player !== socket);
 
                     if (game.state === 'ended') {
                         game.players.filter(player => player === socket);
 
                         if (game.players.length === 0) {
                             delete games[game.id];
+                            console.log(`The game ${game.id} has ended and both players have disconnected. The game is now deleted.`);
                         }
                     } else {
-                        if (opponentSocket) {
-                            opponentSocket.emit('opponentLeft');
-                            game.state = 'ended';
+                        if (reconnectTimers[opponentSocket.userId]) {
+                            console.log(`Both players left the game ${game.id}. The game is now deleted.`);
+                            delete games[game.id];
+                        } else {
+                            reconnectTimers[socket.userId] = setTimeout(() => {
+                                if (opponentSocket) {
+                                    opponentSocket.emit('opponentLeft');
+                                    game.state = 'ended';
+                                }
+                                console.log(`Player left game: ${socket.userId} (${socket.id})`);
+                            }, 30000);
                         }
-                        console.log(`Player left game: ${socket.userId} (${socket.id})`);
+                        console.log(`Player ${socket.userId} (${socket.id}) disconnected from game ${game.id}`);
+                        opponentSocket.emit('opponentDisconnect');
                     }
                 }
             } else {
@@ -141,6 +153,18 @@ const socketHandler = (io) => {
             socket.userId = userId;
             game.players = game.players.map(player => player.userId === userId ? socket : player);
             socket.inGame = true;
+
+            if (reconnectTimers[userId]) {
+                clearTimeout(reconnectTimers[userId]);
+                delete reconnectTimers[userId];
+
+                const opponentSocket = game.players.find(player => player.userId !== userId);
+                if (opponentSocket) {
+                    opponentSocket.emit('opponentReconnect');
+                }
+
+                console.log(`Player with id ${userId} (${socket.id}) rejoined the game with id: ${gameId}`);
+            }
 
             console.log(`Player with id ${userId} (${socket.id}) joined the game with id: ${gameId}`);
         });
