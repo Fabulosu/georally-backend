@@ -831,7 +831,7 @@
         "name": "Burkina Faso",
         "neighbours": [
             "Benin",
-            "Côte d'Ivoire",
+            "Cote d'Ivoire",
             "Ghana",
             "Mali",
             "Niger",
@@ -994,14 +994,24 @@
         "name": "Ghana",
         "neighbours": [
             "Burkina Faso",
-            "Côte d'Ivoire",
+            "Cote d'Ivoire",
             "Togo"
+        ]
+    },
+    {
+        "name": "Cote d'Ivoire",
+        "neighbours": [
+            "Burkina Faso",
+            "Ghana",
+            "Guinea",
+            "Liberia",
+            "Mali"
         ]
     },
     {
         "name": "Guinea",
         "neighbours": [
-            "Côte d'Ivoire",
+            "Cote d'Ivoire",
             "Guinea-Bissau",
             "Liberia",
             "Mali",

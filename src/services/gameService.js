@@ -27,4 +27,29 @@ function checkNeighbour(country, neighbour) {
     }
 }
 
-module.exports = { generateGame, isCoastCountry, checkNeighbour }
+function canTravelByLand(startCountry, targetCountry) {
+    const visited = new Set();
+    const stack = [[startCountry, [startCountry]]];
+
+    while (stack.length > 0) {
+        const [currentCountry, path] = stack.pop();
+        if (currentCountry === targetCountry) {
+            console.log(path)
+            return true;
+        }
+        if (!visited.has(currentCountry)) {
+            visited.add(currentCountry);
+            const countryObj = countries.find(c => c.name === currentCountry);
+            if (countryObj) {
+                for (const neighbour of countryObj.neighbours) {
+                    if (!visited.has(neighbour)) {
+                        stack.push([neighbour, path.concat(neighbour)]);
+                    }
+                }
+            }
+        }
+    }
+    return false;
+}
+
+module.exports = { generateGame, isCoastCountry, checkNeighbour, canTravelByLand }

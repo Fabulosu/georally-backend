@@ -1,4 +1,4 @@
-const { generateGame, checkNeighbour, isCoastCountry } = require('./gameService');
+const { generateGame, checkNeighbour, isCoastCountry, canTravelByLand } = require('./gameService');
 const { v4: uuidv4 } = require('uuid');
 
 const socketHandler = (io) => {
@@ -38,7 +38,7 @@ const socketHandler = (io) => {
                 console.log(player1.id);
                 console.log(player2.id);
 
-                games[gameId] = { players: [player1, player2], state: 'playing', start: null, middle: null, target: null, difficulty: data.difficulty };
+                games[gameId] = { id: gameId, players: [player1, player2], state: 'playing', start: null, middle: null, target: null, difficulty: data.difficulty };
 
                 const start = startCountry.name;
                 const middle = middleCountry.name;
@@ -91,10 +91,19 @@ const socketHandler = (io) => {
                     const opponentSocket = game.players.find(player => player !== socket);
                     game.players = game.players.filter(player => player !== socket);
 
-                    if (opponentSocket) {
-                        opponentSocket.emit('opponentLeft');
+                    if (game.state === 'ended') {
+                        game.players.filter(player => player === socket);
+
+                        if (game.players.length === 0) {
+                            delete games[game.id];
+                        }
+                    } else {
+                        if (opponentSocket) {
+                            opponentSocket.emit('opponentLeft');
+                            game.state = 'ended';
+                        }
+                        console.log(`Player left game: ${socket.userId} (${socket.id})`);
                     }
-                    console.log(`Player left game: ${socket.id}`)
                 }
             } else {
                 console.log(`Player disconnected: ${socket.id}`);
@@ -136,11 +145,11 @@ const socketHandler = (io) => {
             console.log(`Player with id ${userId} (${socket.id}) joined the game with id: ${gameId}`);
         });
 
-        socket.on('submit-neighbour', ({ gameId, country, neighbour }) => {
+        socket.on('submit-neighbour', ({ gameId, country, neighbour, targetCountry }) => {
             const game = games[gameId];
             if (!game) return;
 
-            if (isCoastCountry(country) && isCoastCountry(neighbour)) {
+            if (isCoastCountry(country) && isCoastCountry(neighbour) && !canTravelByLand(country, targetCountry)) {
                 socket.emit('correctAnswer', { country, neighbour, type: "overseas" });
             } else if (checkNeighbour(country, neighbour)) {
                 socket.emit('correctAnswer', { country, neighbour, type: "ground" });
