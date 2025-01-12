@@ -41,7 +41,7 @@ const socketHandler = (io) => {
                 console.log(player1.id);
                 console.log(player2.id);
 
-                games[gameId] = { id: gameId, players: [player1, player2], state: 'playing', start: null, middle: null, target: null, difficulty: data.difficulty };
+                games[gameId] = { id: gameId, players: [player1, player2], state: 'created', start: null, middle: null, target: null, difficulty: data.difficulty };
 
                 const start = startCountry.name;
                 const middle = middleCountry.name;
@@ -154,11 +154,27 @@ const socketHandler = (io) => {
             game.players = game.players.map(player => player.userId === userId ? socket : player);
             socket.inGame = true;
 
+            const opponentSocket = game.players.find(player => player.userId !== userId);
+
+            const bothPlayersInGame = game.players.every(player => player.inGame);
+            if (bothPlayersInGame && !reconnectTimers[userId]) {
+                socket.emit('opponentConnected');
+                opponentSocket.emit('opponentConnected');
+
+                setTimeout(() => {
+                    game.state = 'playing';
+                    socket.emit('gameStarted');
+                    opponentSocket.emit('gameStarted');
+                }, 4000);
+            }
+
             if (reconnectTimers[userId]) {
                 clearTimeout(reconnectTimers[userId]);
                 delete reconnectTimers[userId];
 
-                const opponentSocket = game.players.find(player => player.userId !== userId);
+                socket.emit('gameStarted');
+                opponentSocket.emit('gameStarted');
+
                 if (opponentSocket) {
                     opponentSocket.emit('opponentReconnect');
                 }
