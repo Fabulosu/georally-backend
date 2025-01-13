@@ -1027,16 +1027,6 @@
         ]
     },
     {
-        "name": "Ivory Coast",
-        "neighbours": [
-            "Burkina Faso",
-            "Ghana",
-            "Guinea",
-            "Liberia",
-            "Mali"
-        ]
-    },
-    {
         "name": "Kenya",
         "neighbours": [
             "Ethiopia",
@@ -1056,7 +1046,7 @@
         "name": "Liberia",
         "neighbours": [
             "Guinea",
-            "Ivory Coast",
+            "Cote d'Ivoire",
             "Sierra Leone"
         ]
     },
@@ -1089,7 +1079,7 @@
             "Algeria",
             "Burkina Faso",
             "Guinea",
-            "Ivory Coast",
+            "Cote d'Ivoire",
             "Mauritania",
             "Niger",
             "Senegal"

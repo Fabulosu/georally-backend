@@ -172,6 +172,7 @@ const socketHandler = (io) => {
                 clearTimeout(reconnectTimers[userId]);
                 delete reconnectTimers[userId];
 
+                socket.emit('opponentConnected');
                 socket.emit('gameStarted');
                 opponentSocket.emit('gameStarted');
 
