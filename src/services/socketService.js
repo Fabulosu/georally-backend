@@ -129,7 +129,7 @@ const socketHandler = (io) => {
             if (!game) {
                 socket.emit('gameVerified', { invalid: true, errorMessage: 'Game not found' });
             } else {
-                const isVerified = game.start === start && game.middle === middle && game.target === target && game.difficulty === difficulty;
+                const isVerified = game.start === start && game.middle === middle && game.target === target && game.difficulty === difficulty && game.state !== 'ended';
 
                 if (isVerified) {
                     setTimeout(() => {
