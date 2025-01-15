@@ -56,10 +56,6 @@ const login = async (req, res) => {
     }
 };
 
-const jwt = require('jsonwebtoken');
-const { JWT_SECRET } = require('../configs');
-const User = require('../models/user');
-
 const refreshToken = async (req, res) => {
     const refreshToken = req.headers.authorization.split(' ')[1];
 
@@ -86,7 +82,5 @@ const refreshToken = async (req, res) => {
         res.status(401).json({ message: 'Invalid refresh token.' });
     }
 };
-
-module.exports = { refreshToken };
 
 module.exports = { register, login, refreshToken };
