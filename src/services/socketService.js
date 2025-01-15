@@ -38,8 +38,6 @@ const socketHandler = (io) => {
                 waitingQueue = waitingQueue.filter(player => player !== player1 && player !== player2);
 
                 const { gameId, startCountry, middleCountry, targetCountry } = generateGame();
-                console.log(player1.id);
-                console.log(player2.id);
 
                 games[gameId] = { id: gameId, players: [player1, player2], state: 'created', start: null, middle: null, target: null, difficulty: data.difficulty };
 
