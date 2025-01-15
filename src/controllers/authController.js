@@ -31,12 +31,40 @@ const login = async (req, res) => {
         }
 
         console.log(`User logged in: ${email}`);
-        // const token = jwt.sign({ email }, JWT_SECRET, { expiresIn: '1h' });
-        res.status(200).json({ user: { email: user.email, username: user.username } });
+
+        const payload = {
+            username: user.username,
+            email: user.email,
+            _id: user._id,
+        }
+
+        res.status(200).json({
+            user: {
+                _id: user._id,
+                email: user.email,
+                username: user.username
+            },
+            backendTokens: {
+                accessToken: jwt.sign(payload, JWT_SECRET, { expiresIn: '1h' }),
+                refreshToken: jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' }),
+                expiresIn: new Date().setTime(new Date().getTime() + 3600 * 1000),
+            },
+        });
     } catch (err) {
         console.error('Error logging in:', err);
         res.status(500).json({ message: 'Error logging in.' });
     }
 };
 
-module.exports = { register, login };
+const refreshToken = async (req, res) => {
+    const payload = req.user;
+
+    res.status(200).json({
+        backendTokens: {
+            accessToken: jwt.sign(payload, JWT_SECRET, { expiresIn: '1h' }),
+            refreshToken: jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' })
+        },
+    });
+}
+
+module.exports = { register, login, refreshToken };
