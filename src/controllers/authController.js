@@ -56,15 +56,37 @@ const login = async (req, res) => {
     }
 };
 
-const refreshToken = async (req, res) => {
-    const payload = req.user;
+const jwt = require('jsonwebtoken');
+const { JWT_SECRET } = require('../configs');
+const User = require('../models/user');
 
-    res.status(200).json({
-        backendTokens: {
-            accessToken: jwt.sign(payload, JWT_SECRET, { expiresIn: '1h' }),
-            refreshToken: jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' })
-        },
-    });
-}
+const refreshToken = async (req, res) => {
+    const refreshToken = req.headers.authorization.split(' ')[1];
+
+    try {
+        const payload = jwt.verify(refreshToken, JWT_SECRET);
+
+        const user = await User.findById(payload._id);
+        if (!user) {
+            return res.status(401).json({ message: 'User not found.' });
+        }
+
+        const newPayload = {
+            _id: user._id,
+            email: user.email,
+            username: user.username
+        };
+
+        res.status(200).json({
+            accessToken: jwt.sign(newPayload, JWT_SECRET, { expiresIn: '1h' }),
+            refreshToken: jwt.sign(newPayload, JWT_SECRET, { expiresIn: '7d' })
+        });
+    } catch (err) {
+        console.error('Error refreshing token:', err);
+        res.status(401).json({ message: 'Invalid refresh token.' });
+    }
+};
+
+module.exports = { refreshToken };
 
 module.exports = { register, login, refreshToken };
