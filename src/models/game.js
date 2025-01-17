@@ -5,6 +5,7 @@ const gameSchema = new mongoose.Schema({
     player1: {type: String, ref: "User", required: true},
     player2: {type: String, ref: "User", required: true},
     wonBy: {type: String, ref: "User", required: true},
+    date: {type: Date, default: Date.now}
 });
 
 const Game = mongoose.model("Game", gameSchema);

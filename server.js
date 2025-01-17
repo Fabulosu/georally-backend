@@ -5,6 +5,7 @@ const { Server } = require('socket.io');
 const connectDB = require('./src/configs/database');
 
 const authRoutes = require('./src/routes/authRoutes');
+const gameRoutes = require('./src/routes/gameRoutes');
 
 const { PORT, DEVMODE } = require('./src/configs');
 const socketHandler = require('./src/services/socketService');
@@ -23,6 +24,7 @@ app.use(cors());
 app.use(express.json());
 
 app.use('/auth', authRoutes);
+app.use('/game', gameRoutes);
 
 connectDB().then(() => {
     if (DEVMODE) {

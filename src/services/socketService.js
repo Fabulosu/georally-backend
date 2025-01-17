@@ -1,12 +1,12 @@
 const { generateGame, checkNeighbour, isCoastCountry, canTravelByLand, saveGame } = require('./gameService');
 const { v4: uuidv4 } = require('uuid');
 
+global.connectedPlayers = 0;
+
 const socketHandler = (io) => {
     let games = {};
     let waitingQueue = [];
     let reconnectTimers = {};
-
-    let connectedPlayers = 0;
 
     io.on('connection', (socket) => {
         socket.on('joinQueue', (data) => {
