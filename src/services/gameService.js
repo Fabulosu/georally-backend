@@ -1,5 +1,6 @@
 const countries = require('../utils/countries.json');
 const { coastCountries } = require('../utils/coastCountries.json');
+const Game = require('../models/game');
 
 function generateGame() {
     const gameId = 'game-' + Math.random().toString(36).substring(2, 15);
@@ -52,4 +53,11 @@ function canTravelByLand(startCountry, targetCountry) {
     return false;
 }
 
-module.exports = { generateGame, isCoastCountry, checkNeighbour, canTravelByLand }
+async function saveGame(data) {
+    const game = new Game(data);
+    await game.save();
+
+    console.log(`Game saved: ${game.gameId}`);
+}
+
+module.exports = { generateGame, isCoastCountry, checkNeighbour, canTravelByLand, saveGame }

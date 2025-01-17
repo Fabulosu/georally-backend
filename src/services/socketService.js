@@ -1,4 +1,4 @@
-const { generateGame, checkNeighbour, isCoastCountry, canTravelByLand } = require('./gameService');
+const { generateGame, checkNeighbour, isCoastCountry, canTravelByLand, saveGame } = require('./gameService');
 const { v4: uuidv4 } = require('uuid');
 
 const socketHandler = (io) => {
@@ -14,14 +14,20 @@ const socketHandler = (io) => {
 
             const isInGame = Object.values(games).some(game => game.players.includes(socket));
             if (isInGame) return;
+            let userId = null;
 
-            const userId = uuidv4();
+            if (data.userId) {
+                userId = data.userId;
+            } else {
+                userId = uuidv4();
+            }
+
             socket.userId = userId;
             socket.inGame = false;
 
             socket.emit('joinedQueue', { userId });
 
-            console.log(`Player joined queue: ${socket.id}`);
+            console.log(`Player joined queue: ${socket.userId} (${socket.id})`);
 
             connectedPlayers++;
             io.emit('updateClientCount', connectedPlayers);
@@ -197,7 +203,7 @@ const socketHandler = (io) => {
             }
         });
 
-        socket.on('gameOver', ({ gameId, userId, moves }) => {
+        socket.on('gameOver', async ({ gameId, userId, moves }) => {
             const game = games[gameId];
             if (!game) return;
 
@@ -210,6 +216,8 @@ const socketHandler = (io) => {
             if (opponentSocket) {
                 opponentSocket.emit('opponentWon', { opponentMoves: moves });
             }
+
+            await saveGame({gameId, player1: playerSocket.userId, player2: opponentSocket.userId, wonBy: playerSocket.userId});
 
             games[gameId].state = 'ended';
         });
