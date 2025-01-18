@@ -1,14 +1,16 @@
 const { generateGame, checkNeighbour, isCoastCountry, canTravelByLand, saveGame } = require('./gameService');
 const { v4: uuidv4 } = require('uuid');
 
-global.connectedPlayers = 0;
+global.activePlayers = 0;
 
 const socketHandler = (io) => {
     let games = {};
     let waitingQueue = [];
     let reconnectTimers = {};
+    let connectedPlayers = 0;
 
     io.on('connection', (socket) => {
+        activePlayers++;
         socket.on('joinQueue', (data) => {
             if (waitingQueue.includes(socket)) return;
 
@@ -85,6 +87,7 @@ const socketHandler = (io) => {
         });
 
         socket.on('disconnect', () => {
+            activePlayers--;
             if (waitingQueue.includes(socket)) {
                 waitingQueue.splice(waitingQueue.indexOf(socket), 1);
                 console.log(`Player removed from queue: ${socket.id}`);

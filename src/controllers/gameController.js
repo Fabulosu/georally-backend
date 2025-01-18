@@ -64,7 +64,7 @@ const fetchStats = async (req, res) => {
             }
         });
 
-        res.status(200).json({ totalPlayers: totalPlayers, gamesPlayedToday: gamesToday.length, activePlayers: global.connectedPlayers });
+        res.status(200).json({ totalPlayers: totalPlayers, gamesPlayedToday: gamesToday.length, activePlayers: global.activePlayers });
     } catch (error) {
         res.status(500).json({ message: 'Error fetching statistics', error });
     }
