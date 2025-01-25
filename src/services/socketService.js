@@ -220,7 +220,7 @@ const socketHandler = (io) => {
                 opponentSocket.emit('opponentWon', { opponentMoves: moves });
             }
 
-            await saveGame({gameId, player1: playerSocket.userId, player2: opponentSocket.userId, wonBy: playerSocket.userId});
+            await saveGame({gameId, difficulty: game.difficulty, player1: playerSocket.userId, player2: opponentSocket.userId, wonBy: playerSocket.userId});
 
             games[gameId].state = 'ended';
         });

@@ -1,6 +1,8 @@
 const countries = require('../utils/countries.json');
 const { coastCountries } = require('../utils/coastCountries.json');
 const Game = require('../models/game');
+const User = require('../models/user');
+const { default: mongoose } = require('mongoose');
 
 function generateGame() {
     const gameId = 'game-' + Math.random().toString(36).substring(2, 15);
@@ -56,6 +58,37 @@ function canTravelByLand(startCountry, targetCountry) {
 async function saveGame(data) {
     const game = new Game(data);
     await game.save();
+
+    let expToAdd = 0;
+
+    switch (data.difficulty) {
+        case "easy":
+            expToAdd = 5;
+            break;
+        case "medium":
+            expToAdd = 15;
+            break;
+        case "hard":
+            expToAdd = 30;
+            break;
+        default:
+            expToAdd = 0;
+            break;
+    }
+
+    const winnerId = data.wonBy;
+    const loserId = winnerId === data.player1 ? data.player2 : data.player1;
+
+    const winner = mongoose.Types.ObjectId.isValid(winnerId) ? await User.findById(winnerId) : null;
+    const loser = mongoose.Types.ObjectId.isValid(loserId) ? await User.findById(loserId) : null;
+
+    if (winner) {
+        await User.updateOne({ _id: winnerId }, { $inc: { experience: expToAdd } });
+    }
+
+    if (loser) {
+        await User.updateOne({ _id: loserId }, { $inc: { experience: -expToAdd } });
+    }
 
     console.log(`Game saved: ${game.gameId}`);
 }

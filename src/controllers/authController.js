@@ -42,7 +42,8 @@ const login = async (req, res) => {
             user: {
                 _id: user._id,
                 email: user.email,
-                username: user.username
+                username: user.username,
+                experience: user.experience,
             },
             backendTokens: {
                 accessToken: jwt.sign(payload, JWT_SECRET, { expiresIn: '1h' }),
