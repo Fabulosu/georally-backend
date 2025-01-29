@@ -17,14 +17,18 @@ const socketHandler = (io) => {
             const isInGame = Object.values(games).some(game => game.players.includes(socket));
             if (isInGame) return;
             let userId = null;
+            let userName = null;
 
             if (data.userId) {
                 userId = data.userId;
+                userName = data.userName;
             } else {
                 userId = uuidv4();
+                userName = `Guest${userId.slice(0, 4)}`;
             }
 
             socket.userId = userId;
+            socket.userName = userName;
             socket.inGame = false;
 
             socket.emit('joinedQueue', { userId });
@@ -65,7 +69,8 @@ const socketHandler = (io) => {
                     middle: games[gameId].middle,
                     target: games[gameId].target,
                     difficulty: data.difficulty,
-                    userId: player1.userId
+                    userId: player1.userId,
+                    opponent: { userName: player2.userName }
                 });
 
                 player2.emit('gameStart', {
@@ -74,7 +79,8 @@ const socketHandler = (io) => {
                     middle: games[gameId].middle,
                     target: games[gameId].target,
                     difficulty: data.difficulty,
-                    userId: player2.userId
+                    userId: player2.userId,
+                    opponent: { userName: player1.userName }
                 });
 
                 setTimeout(() => {
@@ -220,7 +226,7 @@ const socketHandler = (io) => {
                 opponentSocket.emit('opponentWon', { opponentMoves: moves });
             }
 
-            await saveGame({gameId, difficulty: game.difficulty, player1: playerSocket.userId, player2: opponentSocket.userId, wonBy: playerSocket.userId});
+            await saveGame({ gameId, difficulty: game.difficulty, player1: playerSocket.userId, player2: opponentSocket.userId, wonBy: playerSocket.userId });
 
             games[gameId].state = 'ended';
         });
