@@ -49,16 +49,18 @@ const socketHandler = (io) => {
 
                 waitingQueue = waitingQueue.filter(player => player !== player1 && player !== player2);
 
-                const { gameId, startCountry, middleCountry, targetCountry } = generateGame();
+                const { gameId, startCountry, middleCountry, targetCountry, bannedCountry } = generateGame(data.difficulty);
 
-                games[gameId] = { id: gameId, players: [player1, player2], state: 'created', start: null, middle: null, target: null, difficulty: data.difficulty };
+                games[gameId] = { id: gameId, players: [player1, player2], state: 'created', start: null, middle: null, target: null, banned: null, difficulty: data.difficulty };
 
                 const start = startCountry.name;
                 const middle = middleCountry.name;
                 const target = targetCountry.name;
+                const banned = bannedCountry ? bannedCountry.name : null;
                 games[gameId].start = start;
                 games[gameId].middle = middle;
                 games[gameId].target = target;
+                games[gameId].banned = banned;
 
                 player1.join(gameId);
                 player2.join(gameId);
@@ -68,6 +70,7 @@ const socketHandler = (io) => {
                     start: games[gameId].start,
                     middle: games[gameId].middle,
                     target: games[gameId].target,
+                    banned: games[gameId].banned || null,
                     difficulty: data.difficulty,
                     userId: player1.userId,
                     opponent: { userName: player2.userName }
@@ -78,6 +81,7 @@ const socketHandler = (io) => {
                     start: games[gameId].start,
                     middle: games[gameId].middle,
                     target: games[gameId].target,
+                    banned: games[gameId].banned,
                     difficulty: data.difficulty,
                     userId: player2.userId,
                     opponent: { userName: player1.userName }
@@ -137,12 +141,12 @@ const socketHandler = (io) => {
             }
         });
 
-        socket.on('verifyGame', ({ gameId, start, middle, target, difficulty }) => {
+        socket.on('verifyGame', ({ gameId, start, middle, target, banned, difficulty }) => {
             const game = games[gameId];
             if (!game) {
                 socket.emit('gameVerified', { invalid: true, errorMessage: 'Game not found' });
             } else {
-                const isVerified = game.start === start && game.middle === middle && game.target === target && game.difficulty === difficulty && game.state !== 'ended';
+                const isVerified = game.start === start && game.middle === middle && game.target === target && game.banned === banned && game.difficulty === difficulty && game.state !== 'ended';
 
                 if (isVerified) {
                     setTimeout(() => {
@@ -154,6 +158,7 @@ const socketHandler = (io) => {
                         }
                     }, 2000);
                 } else {
+                    console.log(game, { gameId, start, middle, target, banned, difficulty })
                     socket.emit('gameVerified', { invalid: !isVerified, errorMessage: isVerified ? null : 'Invalid game data' });
                 }
             }
@@ -203,9 +208,9 @@ const socketHandler = (io) => {
             const game = games[gameId];
             if (!game) return;
 
-            if (isCoastCountry(country) && isCoastCountry(neighbour) && !canTravelByLand(country, targetCountry)) {
+            if (isCoastCountry(country) && isCoastCountry(neighbour) && !canTravelByLand(country, targetCountry) && neighbour !== game.banned) {
                 socket.emit('correctAnswer', { country, neighbour, type: "overseas" });
-            } else if (checkNeighbour(country, neighbour)) {
+            } else if (checkNeighbour(country, neighbour) && neighbour !== game.banned) {
                 socket.emit('correctAnswer', { country, neighbour, type: "ground" });
             } else {
                 socket.emit('wrongAnswer', { country, neighbour });

@@ -4,17 +4,22 @@ const Game = require('../models/game');
 const User = require('../models/user');
 const { default: mongoose } = require('mongoose');
 
-function generateGame() {
+function generateGame(difficulty) {
     const gameId = 'game-' + Math.random().toString(36).substring(2, 15);
-    let startCountry, middleCountry, targetCountry;
+    let startCountry, middleCountry, targetCountry, bannedCountry;
 
     do {
         startCountry = countries[Math.floor(Math.random() * countries.length)];
         middleCountry = countries[Math.floor(Math.random() * countries.length)];
         targetCountry = countries[Math.floor(Math.random() * countries.length)];
-    } while (startCountry === middleCountry || middleCountry === targetCountry || startCountry === targetCountry);
+        bannedCountry = countries[Math.floor(Math.random() * countries.length)];
+    } while (startCountry === middleCountry || middleCountry === targetCountry || startCountry === targetCountry || bannedCountry === targetCountry || bannedCountry === startCountry || bannedCountry === middleCountry);
 
-    return { gameId, startCountry, middleCountry, targetCountry };
+    if (difficulty === "hard" && Math.random() * 100 < 25) {
+        return { gameId, startCountry, middleCountry, targetCountry, bannedCountry };
+    } else {
+        return { gameId, startCountry, middleCountry, targetCountry, bannedCountry: null };
+    }
 }
 
 function isCoastCountry(country) {
