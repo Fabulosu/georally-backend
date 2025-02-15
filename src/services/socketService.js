@@ -7,7 +7,6 @@ const socketHandler = (io) => {
     let games = {};
     let waitingQueue = [];
     let reconnectTimers = {};
-    let connectedPlayers = 0;
 
     io.on('connection', (socket) => {
         activePlayers++;
@@ -35,11 +34,10 @@ const socketHandler = (io) => {
 
             console.log(`Player joined queue: ${socket.userId} (${socket.id})`);
 
-            connectedPlayers++;
-            io.emit('updateClientCount', connectedPlayers);
-
             socket.difficulty = data.difficulty;
             waitingQueue.push(socket);
+
+            io.emit('updateClientCount', waitingQueue.length);
 
             const sameDifficultyPlayers = waitingQueue.filter(player => player.difficulty === data.difficulty);
 
@@ -48,6 +46,7 @@ const socketHandler = (io) => {
                 const player2 = sameDifficultyPlayers.shift();
 
                 waitingQueue = waitingQueue.filter(player => player !== player1 && player !== player2);
+                io.emit('updateClientCount', waitingQueue.length);
 
                 const { gameId, startCountry, middleCountry, targetCountry, bannedCountry } = generateGame(data.difficulty);
 
@@ -87,11 +86,6 @@ const socketHandler = (io) => {
                     opponent: { userName: player1.userName }
                 });
 
-                setTimeout(() => {
-                    connectedPlayers -= 2;
-                    io.emit('updateClientCount', connectedPlayers);
-                }, 2000);
-
                 console.log(`Game Room created: ${gameId} with players ${player1.userId} (${player1.id}), ${player2.userId} (${player2.id})`);
             }
         });
@@ -101,8 +95,7 @@ const socketHandler = (io) => {
             if (waitingQueue.includes(socket)) {
                 waitingQueue.splice(waitingQueue.indexOf(socket), 1);
                 console.log(`Player removed from queue: ${socket.id}`);
-                connectedPlayers--;
-                io.emit('updateClientCount', connectedPlayers);
+                io.emit('updateClientCount', waitingQueue.length);
             } else if (Object.values(games).some(game => game.players.includes(socket))) {
                 const player = Object.values(games).find(game => game.players.includes(socket)).players.find(player => player === socket);
 
@@ -136,8 +129,7 @@ const socketHandler = (io) => {
                 }
             } else {
                 console.log(`Player disconnected: ${socket.id}`);
-                connectedPlayers--;
-                io.emit('updateClientCount', connectedPlayers);
+                io.emit('updateClientCount', waitingQueue.length);
             }
         });
 
