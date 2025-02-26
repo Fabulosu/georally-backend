@@ -35,11 +35,11 @@ const fetchLeaderboard = async (req, res) => {
         const leaderboardWithUsernames = await Promise.all(filteredLeaderboard.map(async entry => {
             const user = await User.findById(entry[0]);
             const winRate = (entry[1].wins / entry[1].totalGames) * 100;
-            return { 
-                username: user.username, 
-                totalGames: entry[1].totalGames, 
-                wonGames: entry[1].wins, 
-                winRate: winRate.toFixed(2) 
+            return {
+                username: user.username,
+                totalGames: entry[1].totalGames,
+                wonGames: entry[1].wins,
+                winRate: winRate.toFixed(2)
             };
         }));
 
@@ -53,7 +53,7 @@ const fetchStats = async (req, res) => {
     try {
         const today = new Date();
         today.setUTCHours(0, 0, 0, 0);
-        
+
         const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000);
 
         const totalPlayers = await User.countDocuments();
@@ -64,7 +64,9 @@ const fetchStats = async (req, res) => {
             }
         });
 
-        res.status(200).json({ totalPlayers: totalPlayers, gamesPlayedToday: gamesToday.length, activePlayers: global.activePlayers });
+        const totalGames = await Game.find();
+
+        res.status(200).json({ totalPlayers: totalPlayers, gamesPlayedToday: gamesToday.length, totalGames: totalGames.length, activePlayers: global.activePlayers });
     } catch (error) {
         res.status(500).json({ message: 'Error fetching statistics', error });
     }
