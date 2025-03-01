@@ -15,6 +15,7 @@ countries.forEach(({ name, neighbours }) => {
     * @param {string} end - Destination country
     * @returns {string[] | string} - Shortest path as an array or null
 **/
+
 function findShortestPath(start, end) {
     if (!graph[start] || !graph[end]) {
         console.log("One or both of the countries are not in the dataset.");
@@ -65,7 +66,7 @@ function generateGame(difficulty) {
         checkNeighbour(startCountry.name, targetCountry.name) ||
         checkNeighbour(middleCountry.name, targetCountry.name)
     );
-    if (difficulty === "hard" && Math.random() * 100 < 99) {
+    if (difficulty === "hard" && Math.random() * 100 < 25) {
 
         const pathStartToMiddle = findShortestPath(startCountry.name, middleCountry.name);
         const pathMiddleToTarget = findShortestPath(middleCountry.name, targetCountry.name);
@@ -169,4 +170,4 @@ async function saveGame(data) {
     console.log(`Game saved: ${game.gameId}`);
 }
 
-module.exports = { generateGame, isCoastCountry, checkNeighbour, canTravelByLand, saveGame }
+module.exports = { generateGame, isCoastCountry, checkNeighbour, canTravelByLand, saveGame };
