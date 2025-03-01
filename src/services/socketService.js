@@ -209,6 +209,21 @@ const socketHandler = (io) => {
             }
         });
 
+        socket.on('outOfTime', async ({gameId, userId, moves}) => {
+            const game = games[gameId];
+            if (!game) return;
+
+            const playerSocket = game.players.find(player => player.userId === userId);
+            if (playerSocket) {
+                playerSocket.emit('opponentWon', { opponentMoves: moves });
+            }
+
+            const opponentSocket = game.players.find(player => player.userId !== userId);
+            if (opponentSocket) {
+                opponentSocket.emit('gameWon', { opponentMoves: moves });
+            }
+        });
+
         socket.on('gameOver', async ({ gameId, userId, moves }) => {
             const game = games[gameId];
             if (!game) return;
