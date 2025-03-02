@@ -200,7 +200,7 @@ const socketHandler = (io) => {
             const game = games[gameId];
             if (!game) return;
 
-            if (isCoastCountry(country) && isCoastCountry(neighbour) && !canTravelByLand(country, targetCountry) && neighbour !== game.banned) {
+            if (isCoastCountry(country) && isCoastCountry(neighbour) && !canTravelByLand(country, targetCountry) && neighbour !== game.banned && country !== neighbour) {
                 socket.emit('correctAnswer', { country, neighbour, type: "overseas" });
             } else if (checkNeighbour(country, neighbour) && neighbour !== game.banned) {
                 socket.emit('correctAnswer', { country, neighbour, type: "ground" });
