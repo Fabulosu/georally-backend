@@ -1,180 +1,70 @@
-const { generateGame, checkNeighbour, isCoastCountry, canTravelByLand, saveGame } = require('./gameService');
-const { v4: uuidv4 } = require('uuid');
+const GameManager = require('./classes/GameManager');
+const Player = require('./classes/Player');
+const Room = require('./classes/Room');
 
 global.activePlayers = 0;
+global.gameManager = new GameManager();
 
 const socketHandler = (io) => {
-    let games = {};
     let waitingQueue = [];
     let reconnectTimers = {};
 
     io.on('connection', (socket) => {
-        activePlayers++;
         socket.on('joinQueue', (data) => {
-            if (waitingQueue.includes(socket)) return;
+            if (waitingQueue.some(player => player.socket === socket)) return;
 
-            const isInGame = Object.values(games).some(game => game.players.includes(socket));
-            if (isInGame) return;
-            let userId = null;
-            let userName = null;
+            const player = new Player(socket, data.userId, data.userName, data.difficulty);
 
-            if (data.userId) {
-                userId = data.userId;
-                userName = data.userName;
-            } else {
-                userId = uuidv4();
-                userName = `Guest${userId.slice(0, 4)}`;
-            }
+            socket.emit('joinedQueue', { userId: player.userId });
+            console.log(`Player joined queue: ${player.userId} (${socket.id})`);
 
-            socket.userId = userId;
-            socket.userName = userName;
-            socket.inGame = false;
-
-            socket.emit('joinedQueue', { userId });
-
-            console.log(`Player joined queue: ${socket.userId} (${socket.id})`);
-
-            socket.difficulty = data.difficulty;
-            waitingQueue.push(socket);
-
+            waitingQueue.push(player);
             io.emit('updateClientCount', waitingQueue.length);
 
-            const sameDifficultyPlayers = waitingQueue.filter(player => player.difficulty === data.difficulty);
+            const sameDifficultyPlayers = waitingQueue.filter(p => p.difficulty === data.difficulty);
 
             if (sameDifficultyPlayers.length >= 2) {
                 const player1 = sameDifficultyPlayers.shift();
                 const player2 = sameDifficultyPlayers.shift();
 
-                waitingQueue = waitingQueue.filter(player => player !== player1 && player !== player2);
+                waitingQueue = waitingQueue.filter(p => p !== player1 && p !== player2);
                 io.emit('updateClientCount', waitingQueue.length);
 
-                const { gameId, startCountry, middleCountry, targetCountry, bannedCountry } = generateGame(data.difficulty);
-
-                games[gameId] = { id: gameId, players: [player1, player2], state: 'created', start: null, middle: null, target: null, banned: null, difficulty: data.difficulty };
-
-                const start = startCountry.name;
-                const middle = middleCountry.name;
-                const target = targetCountry.name;
-                const banned = bannedCountry ? bannedCountry.name : null;
-                games[gameId].start = start;
-                games[gameId].middle = middle;
-                games[gameId].target = target;
-                games[gameId].banned = banned;
-
-                player1.join(gameId);
-                player2.join(gameId);
-
-                player1.emit('gameStart', {
-                    gameId: gameId,
-                    start: games[gameId].start,
-                    middle: games[gameId].middle,
-                    target: games[gameId].target,
-                    banned: games[gameId].banned || null,
-                    difficulty: data.difficulty,
-                    userId: player1.userId,
-                    opponent: { userName: player2.userName }
-                });
-
-                player2.emit('gameStart', {
-                    gameId: gameId,
-                    start: games[gameId].start,
-                    middle: games[gameId].middle,
-                    target: games[gameId].target,
-                    banned: games[gameId].banned,
-                    difficulty: data.difficulty,
-                    userId: player2.userId,
-                    opponent: { userName: player1.userName }
-                });
-
-                console.log(`Game Room created: ${gameId} with players ${player1.userId} (${player1.id}), ${player2.userId} (${player2.id})`);
+                const game = new Room(player1, player2, data.difficulty);
+                game.startGame();
             }
         });
 
-        socket.on('disconnect', () => {
-            activePlayers--;
-            if (waitingQueue.includes(socket)) {
-                waitingQueue.splice(waitingQueue.indexOf(socket), 1);
-                console.log(`Player removed from queue: ${socket.id}`);
-                io.emit('updateClientCount', waitingQueue.length);
-            } else if (Object.values(games).some(game => game.players.includes(socket))) {
-                const player = Object.values(games).find(game => game.players.includes(socket)).players.find(player => player === socket);
-
-                if (player.inGame) {
-                    const game = Object.values(games).find(game => game.players.includes(socket));
-                    const opponentSocket = game.players.find(player => player !== socket);
-
-                    if (game.state === 'ended') {
-                        game.players.filter(player => player === socket);
-
-                        if (game.players.length === 0) {
-                            delete games[game.id];
-                            console.log(`The game ${game.id} has ended and both players have disconnected. The game is now deleted.`);
-                        }
-                    } else {
-                        if (reconnectTimers[opponentSocket.userId]) {
-                            console.log(`Both players left the game ${game.id}. The game is now deleted.`);
-                            delete games[game.id];
-                        } else {
-                            reconnectTimers[socket.userId] = setTimeout(() => {
-                                if (opponentSocket) {
-                                    opponentSocket.emit('opponentLeft');
-                                    game.state = 'ended';
-                                }
-                                console.log(`Player left game: ${socket.userId} (${socket.id})`);
-                            }, 30000);
-                        }
-                        console.log(`Player ${socket.userId} (${socket.id}) disconnected from game ${game.id}`);
-                        opponentSocket.emit('opponentDisconnect');
-                    }
-                }
+        socket.on('verifyGame', ({ userId, gameId, start, middle, target, banned, difficulty }) => {
+            const game = gameManager.getGame(gameId);
+            if (game) {
+                game.verifyGame({ userId, gameId, start, middle, target, banned, difficulty }, socket);
             } else {
-                console.log(`Player disconnected: ${socket.id}`);
-                io.emit('updateClientCount', waitingQueue.length);
-            }
-        });
-
-        socket.on('verifyGame', ({ gameId, start, middle, target, banned, difficulty }) => {
-            const game = games[gameId];
-            if (!game) {
-                socket.emit('gameVerified', { invalid: true, errorMessage: 'Game not found' });
-            } else {
-                const isVerified = game.start === start && game.middle === middle && game.target === target && game.banned === banned && game.difficulty === difficulty && game.state !== 'ended';
-
-                if (isVerified) {
-                    setTimeout(() => {
-                        const gamePlayers = game.players.map(player => player.userId);
-                        if (socket.userId !== gamePlayers[0] && socket.userId !== gamePlayers[1]) {
-                            socket.emit('gameVerified', { invalid: true, errorMessage: 'You are not part of this game' });
-                        } else {
-                            socket.emit('gameVerified', { invalid: false, errorMessage: null });
-                        }
-                    }, 2000);
-                } else {
-                    console.log(game, { gameId, start, middle, target, banned, difficulty })
-                    socket.emit('gameVerified', { invalid: !isVerified, errorMessage: isVerified ? null : 'Invalid game data' });
-                }
+                socket.emit('gameVerified', { invalid: true, errorMessage: 'Invalid game data' });
             }
         });
 
         socket.on('rejoinGame', ({ gameId, userId }) => {
-            const game = games[gameId];
+            const game = gameManager.getGame(gameId);
             if (!game) return;
 
-            socket.userId = userId;
-            game.players = game.players.map(player => player.userId === userId ? socket : player);
-            socket.inGame = true;
+            const player = game.getPlayer(userId);
+            player.updateSocket(socket);
 
-            const opponentSocket = game.players.find(player => player.userId !== userId);
+            const opponent = game.getOpponent(userId);
+            player.inGame = true;
+            opponent.inGame = true;
 
-            const bothPlayersInGame = game.players.every(player => player.inGame);
+            const bothPlayersInGame = player.inGame && opponent.inGame;
+
             if (bothPlayersInGame && !reconnectTimers[userId]) {
-                socket.emit('opponentConnected');
-                opponentSocket.emit('opponentConnected');
+                player.send('opponentConnected');
+                opponent.send('opponentConnected');
 
                 setTimeout(() => {
                     game.state = 'playing';
-                    socket.emit('gameStarted');
-                    opponentSocket.emit('gameStarted');
+                    player.send('gameStarted');
+                    opponent.send('gameStarted');
                 }, 4000);
             }
 
@@ -182,65 +72,82 @@ const socketHandler = (io) => {
                 clearTimeout(reconnectTimers[userId]);
                 delete reconnectTimers[userId];
 
-                socket.emit('opponentConnected');
-                socket.emit('gameStarted');
-                opponentSocket.emit('gameStarted');
+                player.send('opponentConnected');
+                player.send('gameStarted');
+                opponent.send('gameStarted');
 
-                if (opponentSocket) {
-                    opponentSocket.emit('opponentReconnect');
+                if (opponent) {
+                    opponent.send('opponentReconnect');
                 }
 
                 console.log(`Player with id ${userId} (${socket.id}) rejoined the game with id: ${gameId}`);
             }
-
-            console.log(`Player with id ${userId} (${socket.id}) joined the game with id: ${gameId}`);
         });
 
         socket.on('submit-neighbour', ({ gameId, country, neighbour, targetCountry }) => {
-            const game = games[gameId];
+            const game = gameManager.getGame(gameId);
             if (!game) return;
 
-            if (isCoastCountry(country) && isCoastCountry(neighbour) && !canTravelByLand(country, targetCountry) && neighbour !== game.banned && country !== neighbour) {
-                socket.emit('correctAnswer', { country, neighbour, type: "overseas" });
-            } else if (checkNeighbour(country, neighbour) && neighbour !== game.banned) {
-                socket.emit('correctAnswer', { country, neighbour, type: "ground" });
+            game.submitNeighbour(socket, country, neighbour, targetCountry);
+        });
+
+        socket.on('gameOver', ({ gameId, userId, moves, reason }) => {
+            const game = gameManager.getGame(gameId);
+            if (!game) return;
+
+            game.endGame(userId, moves, reason);
+        });
+
+        socket.on('savePlayerData', (data) => {
+            const player = gameManager.getPlayer(socket);
+            if (!player) return;
+
+            player.path = data.path;
+            player.timeLeft = data.timeLeft;
+        });
+
+        socket.on('disconnect', () => {
+            activePlayers--;
+            const player = gameManager.getPlayer(socket);
+            if (!player) return;
+            if (waitingQueue.includes(player)) {
+                waitingQueue.splice(waitingQueue.indexOf(player), 1);
+                console.log(`Player removed from queue: ${player.userId} (${socket.id})`);
+                gameManager.deletePlayer(socket);
+                io.emit('updateClientCount', waitingQueue.length);
+            } else if (player.gameId !== null) {
+                if (player.inGame) {
+                    const game = gameManager.getGame(player.gameId);
+                    const opponent = game.getOpponent(player.userId);
+
+                    if (game.state === 'ended') {
+                        game.players.filter(player => player === player);
+
+                        if (game.players.length === 0) {
+                            gameManager.deleteGame(game.id);
+                            console.log(`The game ${game.id} has ended and both players have disconnected. The game is now deleted.`);
+                        }
+                    } else {
+                        if (reconnectTimers[opponent.userId]) {
+                            console.log(`Both players left the game ${game.id}. The game is now deleted.`);
+                            gameManager.deleteGame(game.id);
+                        } else {
+                            reconnectTimers[player.userId] = setTimeout(() => {
+                                if (opponent) {
+                                    opponent.send('opponentLeft');
+                                    game.state = 'ended';
+                                }
+                                console.log(`Player left game: ${player.userId} (${socket.id})`);
+                            }, 30000);
+                        }
+                        console.log(`Player ${player.userId} (${socket.id}) disconnected from game ${game.id}`);
+                        opponent.send('opponentDisconnect');
+                    }
+                }
             } else {
-                socket.emit('wrongAnswer', { country, neighbour });
+                console.log(`Player disconnected: ${socket.id}`);
+                io.emit('updateClientCount', waitingQueue.length);
             }
-        });
-
-        socket.on('outOfTime', async ({gameId, userId, moves}) => {
-            const game = games[gameId];
-            if (!game) return;
-
-            const playerSocket = game.players.find(player => player.userId === userId);
-            if (playerSocket) {
-                playerSocket.emit('opponentWon', { opponentMoves: moves });
-            }
-
-            const opponentSocket = game.players.find(player => player.userId !== userId);
-            if (opponentSocket) {
-                opponentSocket.emit('gameWon', { opponentMoves: moves });
-            }
-        });
-
-        socket.on('gameOver', async ({ gameId, userId, moves }) => {
-            const game = games[gameId];
-            if (!game) return;
-
-            const playerSocket = game.players.find(player => player.userId === userId);
-            if (playerSocket) {
-                playerSocket.emit('gameWon', { opponentMoves: moves });
-            }
-
-            const opponentSocket = game.players.find(player => player.userId !== userId);
-            if (opponentSocket) {
-                opponentSocket.emit('opponentWon', { opponentMoves: moves });
-            }
-
-            await saveGame({ gameId, difficulty: game.difficulty, player1: playerSocket.userId, player2: opponentSocket.userId, wonBy: playerSocket.userId });
-
-            games[gameId].state = 'ended';
         });
     });
 };
