@@ -44,7 +44,7 @@ const socketHandler = (io) => {
             }
         });
 
-        socket.on('rejoinGame', ({ gameId, userId }) => {
+        socket.on('joinGame', ({ gameId, userId }) => {
             const game = gameManager.getGame(gameId);
             if (!game) return;
 
@@ -56,22 +56,23 @@ const socketHandler = (io) => {
             const bothPlayersInGame = player.inGame && opponent.inGame;
 
             if (bothPlayersInGame && !reconnectTimers[userId]) {
-                player.send('opponentConnected');
-                opponent.send('opponentConnected');
+                player.send('opponentJoined');
+                opponent.send('opponentJoined');
 
                 setTimeout(() => {
                     game.state = 'playing';
                     player.send('gameStarted');
                     opponent.send('gameStarted');
-                }, 4000);
+                }, 5000);
             }
 
             if (reconnectTimers[userId]) {
                 clearTimeout(reconnectTimers[userId]);
                 delete reconnectTimers[userId];
 
-                player.send('opponentConnected');
+                player.send('opponentJoined');
                 player.send('gameStarted');
+                player.send('rejoinedGame');
                 opponent.send('gameStarted');
 
                 if (opponent) {

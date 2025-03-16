@@ -71,7 +71,7 @@ class Room {
         const loser = this.players.find(player => player.userId !== winnerId);
 
         if (winner) winner.send('gameWon', { opponentMoves: moves });
-        if (loser) loser.send('opponentWon', { opponentMoves: moves });
+        if (loser) loser.send('gameLost', { opponentMoves: moves });
 
         await this.saveGame({
             gameId: this.id,
