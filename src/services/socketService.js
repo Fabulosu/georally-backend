@@ -48,12 +48,10 @@ const socketHandler = (io) => {
             const game = gameManager.getGame(gameId);
             if (!game) return;
 
+            const opponent = game.getOpponent(userId);
             const player = game.getPlayer(userId);
             player.updateSocket(socket);
-
-            const opponent = game.getOpponent(userId);
             player.inGame = true;
-            opponent.inGame = true;
 
             const bothPlayersInGame = player.inGame && opponent.inGame;
 
