@@ -4,11 +4,11 @@ const User = require('../../models/user');
 const { default: mongoose } = require('mongoose');
 
 class Room {
-    constructor(player1, player2, difficulty) {
+    constructor(players, difficulty) {
         const { startCountry, middleCountry, targetCountry, bannedCountry } = generateCountries(difficulty);
 
         this.id = 'game-' + Math.random().toString(36).substring(2, 15);
-        this.players = [player1, player2];
+        this.players = players;
         this.state = 'created';
         this.start = startCountry.name;
         this.middle = middleCountry.name;
@@ -42,7 +42,7 @@ class Room {
             });
         });
 
-        console.log(`Game Room created: ${this.id} with players ${this.players[0].userId}, ${this.players[1].userId}`);
+        console.log(`Game Room created: ${this.id} with players ${this.players.map(player => player.userId).join(', ')}`);
     }
 
     verifyGame(data, socket) {
@@ -68,10 +68,12 @@ class Room {
 
     async endGame(winnerId, moves, reason) {
         const winner = this.players.find(player => player.userId === winnerId);
-        const loser = this.players.find(player => player.userId !== winnerId);
+        const losers = this.players.filter(player => player.userId !== winnerId);
 
         if (winner) winner.send('gameWon', { opponentMoves: moves });
-        if (loser) loser.send('gameLost', { opponentMoves: moves });
+        losers.forEach(loser => {
+            if (loser) loser.send('gameLost', { opponentMoves: moves });
+        });
 
         await this.saveGame({
             gameId: this.id,

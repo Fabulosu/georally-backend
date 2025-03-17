@@ -13,7 +13,7 @@ const socketHandler = (io) => {
         socket.on('joinQueue', (data) => {
             if (waitingQueue.some(player => player.socket === socket)) return;
 
-            const player = new Player(socket, data.userId, data.userName, data.difficulty);
+            const player = new Player(socket, data.userId, data.username, data.difficulty);
 
             socket.emit('joinedQueue', { userId: player.userId });
             console.log(`Player joined queue: ${player.userId} (${socket.id})`);
@@ -30,7 +30,7 @@ const socketHandler = (io) => {
                 waitingQueue = waitingQueue.filter(p => p !== player1 && p !== player2);
                 io.emit('updateClientCount', waitingQueue.length);
 
-                const game = new Room(player1, player2, data.difficulty);
+                const game = new Room([player1, player2], data.difficulty);
                 game.startGame();
             }
         });
