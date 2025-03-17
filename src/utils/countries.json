@@ -1340,7 +1340,8 @@
         "name": "Sweden",
         "neighbours": [
             "Finland",
-            "Norway"
+            "Norway",
+            "Denmark"
         ]
     },
     {
